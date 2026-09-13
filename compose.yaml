@@ -1,0 +1,27 @@
+# Local development database only — the app runs from your IDE, not from here.
+# Production uses Neon (see plan.md, decision 10).
+services:
+  postgres:
+    image: postgres:17
+    container_name: digest-postgres
+    environment:
+      POSTGRES_DB: digest
+      POSTGRES_USER: digest
+      POSTGRES_PASSWORD: digest
+    ports:
+      # Host 5433, not 5432 — a native Postgres 17 LaunchDaemon
+      # (/Library/PostgreSQL/17) already owns 5432 on this machine.
+      - "5433:5432"
+    volumes:
+      # Named volume: without this, `docker compose down` destroys your data.
+      - digest-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # Postgres accepts TCP connections seconds before it can serve queries.
+      # Without this you get intermittent startup failures that look like app bugs.
+      test: ["CMD-SHELL", "pg_isready -U digest -d digest"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  digest-pgdata:
