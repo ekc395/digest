@@ -22,3 +22,8 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+
+management:
+  endpoint:
+    health:
+      show-details: always
