@@ -1,0 +1,4 @@
+# Ignore everything, then allow only what the Dockerfile needs.
+# The jar is built outside Docker, so it is the sole input.
+*
+!target/*.jar
