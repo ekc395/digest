@@ -1,0 +1,63 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  # Resolves to ekc395/digest. GHCR requires lowercase — fine here.
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required to push to GHCR. The default GITHUB_TOKEN is read-only for
+      # packages; without this the push fails with a 403 that looks like an
+      # auth problem rather than a config one.
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: temurin
+          # Without this, every run re-downloads Spring Boot's whole
+          # dependency tree — a minute or two of pure waste per run.
+          cache: maven
+
+      # Runs the Testcontainers suite too: ubuntu-latest ships Docker, so the
+      # same tests that need Docker Desktop locally work here unchanged.
+      # Also produces target/*.jar, which the Dockerfile consumes.
+      - name: Build and test
+        run: ./mvnw --batch-mode verify
+
+      # Publish only from main. PRs get tested, not published.
+      - name: Log in to GHCR
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # latest is what the hourly cron pulls; the SHA tag gives a rollback
+      # target and tells you which commit a running container came from.
+      - name: Build and push image
+        if: github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
