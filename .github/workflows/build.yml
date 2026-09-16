@@ -39,6 +39,13 @@ jobs:
       - name: Build and test
         run: ./mvnw --batch-mode verify
 
+      # Runners default to the "docker" buildx driver, which cannot export
+      # build cache. type=gha caching below needs the "docker-container"
+      # driver, which this action sets up.
+      - name: Set up Buildx
+        if: github.ref == 'refs/heads/main'
+        uses: docker/setup-buildx-action@v3
+
       # Publish only from main. PRs get tested, not published.
       - name: Log in to GHCR
         if: github.ref == 'refs/heads/main'
