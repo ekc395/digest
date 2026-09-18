@@ -3,8 +3,8 @@ spring:
     name: digest
 
   datasource:
-    # Local dev only. Production (GitHub Actions -> Neon) overrides these via
-    # SPRING_DATASOURCE_* environment variables. Never put Neon creds in this file.
+    # Local dev only. Production (GitHub Actions -> Supabase) overrides these via
+    # SPRING_DATASOURCE_* environment variables. Never put Supabase creds in this file.
     url: jdbc:postgresql://localhost:5433/digest
     username: digest
     password: digest

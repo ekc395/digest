@@ -1,5 +1,5 @@
 # Local development database only — the app runs from your IDE, not from here.
-# Production uses Neon (see plan.md, decision 10).
+# Production uses Supabase.
 services:
   postgres:
     image: postgres:17
