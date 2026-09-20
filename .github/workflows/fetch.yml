@@ -1,0 +1,53 @@
+name: fetch
+
+on:
+  # Hourly at :17 — runs at :00 are the most contended on GitHub's scheduler.
+  # The cron is only a wake-up call: the app decides what is actually due by
+  # reading next_fetch_at. See decision 10 in plan.md.
+  schedule:
+    - cron: '17 * * * *'
+  # Lets you trigger a run from the Actions tab instead of waiting an hour.
+  workflow_dispatch:
+
+concurrency:
+  # Never two fetch runs at once. Lease-based claiming makes overlap safe,
+  # but preventing it is cheaper than relying on that.
+  group: fetch
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    # A hung run would otherwise burn up to 6 hours of the runner.
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run digest
+        env:
+          SPRING_DATASOURCE_URL: ${{ secrets.SPRING_DATASOURCE_URL }}
+          SPRING_DATASOURCE_USERNAME: ${{ secrets.SPRING_DATASOURCE_USERNAME }}
+          SPRING_DATASOURCE_PASSWORD: ${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+        # SPRING_MAIN_WEB_APPLICATION_TYPE=none starts no Tomcat, so the app
+        # boots, applies migrations, does its work and exits (~3s today).
+        # Without it the container would run forever and hit the timeout.
+        #
+        # Bare `-e NAME` forwards the value from the step environment rather
+        # than interpolating it into the command line, so secrets never appear
+        # in the log even if a command is echoed.
+        run: |
+          docker run --rm \
+            -e SPRING_MAIN_WEB_APPLICATION_TYPE=none \
+            -e SPRING_DATASOURCE_URL \
+            -e SPRING_DATASOURCE_USERNAME \
+            -e SPRING_DATASOURCE_PASSWORD \
+            ghcr.io/${{ github.repository }}:latest
